@@ -1,0 +1,9 @@
+.idea/
+.fleet/
+.vscode/
+
+.DS_Store
+
+/target
+*.o
+*.x
