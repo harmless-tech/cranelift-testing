@@ -16,4 +16,7 @@ x86_64-linux:
 
 current_dir = $(shell pwd)
 docker:
-	docker run -it --rm -e CARGO_TARGET_DIR=/target -v ${HOME}/.cargo/registry:/usr/local/cargo/registry -v $(current_dir):/ctest -w /ctest rust:latest bash
+	docker run -it --rm --platform=linux/arm64 -e CARGO_TARGET_DIR=/target -v ${HOME}/.cargo/registry:/usr/local/cargo/registry -v $(current_dir):/ctest -w /ctest rust:latest bash
+
+docker-amd64:
+	docker run -it --rm --platform=linux/amd64 -e CARGO_TARGET_DIR=/target -v ${HOME}/.cargo/registry:/usr/local/cargo/registry -v $(current_dir):/ctest -w /ctest rust:latest bash

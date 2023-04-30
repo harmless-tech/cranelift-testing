@@ -7,6 +7,7 @@ use cranelift_frontend::{FunctionBuilder, FunctionBuilderContext, Variable};
 use cranelift_module::{Linkage, Module};
 use cranelift_object::{ObjectBuilder, ObjectModule};
 use std::{fs::File, io::Write};
+use cranelift_codegen::settings::Configurable;
 
 fn main() {
     let args = std::env::args();
@@ -23,7 +24,10 @@ fn main() {
         target = "x86_64-unknown-linux-gnu";
     }
 
-    let shared_flags = settings::Flags::new(settings::builder());
+    let mut flags_builder = settings::builder();
+    flags_builder.set("is_pic", "true").unwrap();
+    let shared_flags = settings::Flags::new(flags_builder);
+
     let isa_builder = isa::lookup_by_name(target).unwrap();
     let isa = isa_builder.finish(shared_flags.clone()).unwrap();
     let mut module = ObjectModule::new(
@@ -31,12 +35,56 @@ fn main() {
     );
 
     let mut func_ctx = FunctionBuilderContext::new();
+    let pointer_type = module.target_config().pointer_type();
 
-    // ___std_exit function
+    // ___std_malloc function
+    let mut sig = module.make_signature();
+    sig.params.push(AbiParam::new(pointer_type));
+    sig.returns.push(AbiParam::new(pointer_type));
+    let func_malloc_id = module
+        .declare_function("___std_malloc", Linkage::Export, &sig)
+        .unwrap();
+    let mut func_malloc_ctx = Context::for_function(Function::with_name_signature(
+        UserFuncName::user(0, func_malloc_id.as_u32()),
+        sig,
+    ));
+    {
+        let mut builder = FunctionBuilder::new(&mut func_malloc_ctx.func, &mut func_ctx);
+        let block = builder.create_block();
+        builder.append_block_params_for_function_params(block);
+        builder.switch_to_block(block);
+        builder.seal_block(block);
+
+        let size = builder.block_params(block)[0];
+
+        let mut sig = module.make_signature();
+        sig.params.push(AbiParam::new(pointer_type));
+        sig.returns.push(AbiParam::new(pointer_type));
+        let callee = module
+            .declare_function("__wrapper_malloc", Linkage::Import, &sig)
+            .unwrap();
+        let local_callee = module.declare_func_in_func(callee, builder.func);
+        let ret = builder.ins().call(local_callee, &[size]);
+        let result = builder.inst_results(ret)[0];
+
+        builder.ins().return_(&[result]);
+        builder.finalize();
+    }
+
+    module
+        .define_function(func_malloc_id, &mut func_malloc_ctx)
+        .unwrap();
+    let res = verify_function(&func_malloc_ctx.func, &shared_flags);
+    println!("{}: {}", func_malloc_id, func_malloc_ctx.func.display());
+    if let Err(errors) = res {
+        panic!("{}", errors);
+    }
+
+    // ___std__exit function
     let mut sig = module.make_signature();
     sig.params.push(AbiParam::new(I32));
     let func_exit_id = module
-        .declare_function("___std_exit", Linkage::Local, &sig)
+        .declare_function("___std__exit", Linkage::Local, &sig)
         .unwrap();
     let mut func_exit_ctx = Context::for_function(Function::with_name_signature(
         UserFuncName::user(0, func_exit_id.as_u32()),
@@ -96,6 +144,12 @@ fn main() {
         {
             let tmp = builder.block_params(block)[0];
             builder.def_var(x, tmp);
+        }
+        {
+            let callee = module.declare_func_in_func(func_malloc_id, builder.func);
+            let arg = builder.use_var(x);
+            let arg = builder.ins().sextend(pointer_type, arg);
+            builder.ins().call(callee, &[arg]);
         }
         {
             let callee = module.declare_func_in_func(func_exit_id, builder.func);

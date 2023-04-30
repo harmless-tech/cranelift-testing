@@ -1,25 +1,14 @@
-#include "cr.h"
-#include "stdlib.h"
-#include "unistd.h"
 #include "stdio.h"
 #include "inttypes.h"
 
-int main(void) {
-//    _exit(22);
+#include "cr.h"
 
-//    type_t isize = sizeof(int);
-//    printf("Call: %"PRId64"\n", isize);
+int main(void) {
+//    size_t mem = ___std_malloc(10);
+//    printf("Call: %"PRId64"\n", (uint64_t) mem);
 
     int32_t call = test_call(101);
     printf("Call: %"PRId32"\n", call);
 
     return 0;
-}
-
-void __wrapper_exit(int32_t code) {
-    exit(code);
-}
-
-void __wrapper__exit(int32_t code) {
-    _exit(code);
 }
