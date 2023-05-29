@@ -3,4 +3,13 @@ default:
 
 run:
     cargo run
-    cd testing && make clean && make && ./main.x
+
+    cargo build -p crt-core
+    cargo build -p crt-alloc
+    cargo build -p crt-std
+
+    cargo build -p crt-runtime
+    target/debug/crt-runtime
+
+crt:
+    target/debug/crt-runtime

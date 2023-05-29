@@ -12,3 +12,6 @@ cranelift-jit = { version = "0.95.0" }
 cranelift-module = { version = "0.95.0" }
 cranelift-native = { version = "0.95.0" }
 cranelift-object = { version = "0.95.0" }
+
+[workspace]
+members = ["crates/*"]

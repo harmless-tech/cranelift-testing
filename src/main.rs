@@ -38,47 +38,47 @@ fn main() {
     let pointer_type = module.target_config().pointer_type();
 
     // ___std_malloc function
-    let mut sig = module.make_signature();
-    sig.params.push(AbiParam::new(pointer_type));
-    sig.returns.push(AbiParam::new(pointer_type));
-    let func_malloc_id = module
-        .declare_function("___std_malloc", Linkage::Export, &sig)
-        .unwrap();
-    let mut func_malloc_ctx = Context::for_function(Function::with_name_signature(
-        UserFuncName::user(0, func_malloc_id.as_u32()),
-        sig,
-    ));
-    {
-        let mut builder = FunctionBuilder::new(&mut func_malloc_ctx.func, &mut func_ctx);
-        let block = builder.create_block();
-        builder.append_block_params_for_function_params(block);
-        builder.switch_to_block(block);
-        builder.seal_block(block);
-
-        let size = builder.block_params(block)[0];
-
-        let mut sig = module.make_signature();
-        sig.params.push(AbiParam::new(pointer_type));
-        sig.returns.push(AbiParam::new(pointer_type));
-        let callee = module
-            .declare_function("__wrapper_malloc", Linkage::Import, &sig)
-            .unwrap();
-        let local_callee = module.declare_func_in_func(callee, builder.func);
-        let ret = builder.ins().call(local_callee, &[size]);
-        let result = builder.inst_results(ret)[0];
-
-        builder.ins().return_(&[result]);
-        builder.finalize();
-    }
-
-    module
-        .define_function(func_malloc_id, &mut func_malloc_ctx)
-        .unwrap();
-    let res = verify_function(&func_malloc_ctx.func, &shared_flags);
-    println!("{}: {}", func_malloc_id, func_malloc_ctx.func.display());
-    if let Err(errors) = res {
-        panic!("{}", errors);
-    }
+    // let mut sig = module.make_signature();
+    // sig.params.push(AbiParam::new(pointer_type));
+    // sig.returns.push(AbiParam::new(pointer_type));
+    // let func_malloc_id = module
+    //     .declare_function("___std_malloc", Linkage::Export, &sig)
+    //     .unwrap();
+    // let mut func_malloc_ctx = Context::for_function(Function::with_name_signature(
+    //     UserFuncName::user(0, func_malloc_id.as_u32()),
+    //     sig,
+    // ));
+    // {
+    //     let mut builder = FunctionBuilder::new(&mut func_malloc_ctx.func, &mut func_ctx);
+    //     let block = builder.create_block();
+    //     builder.append_block_params_for_function_params(block);
+    //     builder.switch_to_block(block);
+    //     builder.seal_block(block);
+    //
+    //     let size = builder.block_params(block)[0];
+    //
+    //     let mut sig = module.make_signature();
+    //     sig.params.push(AbiParam::new(pointer_type));
+    //     sig.returns.push(AbiParam::new(pointer_type));
+    //     let callee = module
+    //         .declare_function("__wrapper_malloc", Linkage::Import, &sig)
+    //         .unwrap();
+    //     let local_callee = module.declare_func_in_func(callee, builder.func);
+    //     let ret = builder.ins().call(local_callee, &[size]);
+    //     let result = builder.inst_results(ret)[0];
+    //
+    //     builder.ins().return_(&[result]);
+    //     builder.finalize();
+    // }
+    //
+    // module
+    //     .define_function(func_malloc_id, &mut func_malloc_ctx)
+    //     .unwrap();
+    // let res = verify_function(&func_malloc_ctx.func, &shared_flags);
+    // println!("{}: {}", func_malloc_id, func_malloc_ctx.func.display());
+    // if let Err(errors) = res {
+    //     panic!("{}", errors);
+    // }
 
     // ___std__exit function
     let mut sig = module.make_signature();
@@ -102,7 +102,7 @@ fn main() {
         let mut sig = module.make_signature();
         sig.params.push(AbiParam::new(I32));
         let callee = module
-            .declare_function("__wrapper__exit", Linkage::Import, &sig)
+            .declare_function("std_wrapper_exit", Linkage::Import, &sig)
             .unwrap();
         let local_callee = module.declare_func_in_func(callee, builder.func);
         builder.ins().call(local_callee, &[code]);
@@ -121,35 +121,85 @@ fn main() {
     }
 
     // test_call function
+    // let mut sig = module.make_signature();
+    // sig.params.push(AbiParam::new(I32));
+    // sig.returns.push(AbiParam::new(I32));
+    // let func_test_call_id = module
+    //     .declare_function("test_call", Linkage::Export, &sig)
+    //     .unwrap();
+    // let mut func_test_call_ctx = Context::for_function(Function::with_name_signature(
+    //     UserFuncName::user(0, func_test_call_id.as_u32()),
+    //     sig,
+    // ));
+    // {
+    //     let mut builder = FunctionBuilder::new(&mut func_test_call_ctx.func, &mut func_ctx);
+    //
+    //     let block = builder.create_block();
+    //     let x = Variable::new(0);
+    //     builder.declare_var(x, I32);
+    //     builder.append_block_params_for_function_params(block);
+    //
+    //     builder.switch_to_block(block);
+    //     builder.seal_block(block);
+    //     {
+    //         let tmp = builder.block_params(block)[0];
+    //         builder.def_var(x, tmp);
+    //     }
+    //     {
+    //         let callee = module.declare_func_in_func(func_malloc_id, builder.func);
+    //         let arg = builder.use_var(x);
+    //         let arg = builder.ins().sextend(pointer_type, arg);
+    //         builder.ins().call(callee, &[arg]);
+    //     }
+    //     {
+    //         let callee = module.declare_func_in_func(func_exit_id, builder.func);
+    //         let arg = builder.use_var(x);
+    //         builder.ins().call(callee, &[arg]);
+    //     }
+    //     {
+    //         let arg = builder.use_var(x);
+    //         builder.ins().return_(&[arg]);
+    //     }
+    //
+    //     builder.finalize();
+    // }
+    //
+    // module
+    //     .define_function(func_test_call_id, &mut func_test_call_ctx)
+    //     .unwrap();
+    // let res = verify_function(&func_test_call_ctx.func, &shared_flags);
+    // println!(
+    //     "{}: {}",
+    //     func_test_call_id,
+    //     func_test_call_ctx.func.display()
+    // );
+    // if let Err(errors) = res {
+    //     panic!("{}", errors);
+    // }
+
+    // main function
     let mut sig = module.make_signature();
-    sig.params.push(AbiParam::new(I32));
     sig.returns.push(AbiParam::new(I32));
-    let func_test_call_id = module
-        .declare_function("test_call", Linkage::Export, &sig)
+    let func_main_id = module
+        .declare_function("_crt_start", Linkage::Export, &sig)
         .unwrap();
-    let mut func_test_call_ctx = Context::for_function(Function::with_name_signature(
-        UserFuncName::user(0, func_test_call_id.as_u32()),
+    let mut func_main_ctx = Context::for_function(Function::with_name_signature(
+        UserFuncName::user(0, func_main_id.as_u32()),
         sig,
     ));
     {
-        let mut builder = FunctionBuilder::new(&mut func_test_call_ctx.func, &mut func_ctx);
+        let mut builder = FunctionBuilder::new(&mut func_main_ctx.func, &mut func_ctx);
 
         let block = builder.create_block();
         let x = Variable::new(0);
         builder.declare_var(x, I32);
-        builder.append_block_params_for_function_params(block);
 
         builder.switch_to_block(block);
         builder.seal_block(block);
+
         {
-            let tmp = builder.block_params(block)[0];
-            builder.def_var(x, tmp);
-        }
-        {
-            let callee = module.declare_func_in_func(func_malloc_id, builder.func);
-            let arg = builder.use_var(x);
-            let arg = builder.ins().sextend(pointer_type, arg);
-            builder.ins().call(callee, &[arg]);
+            let val = builder.ins().iconst(I32, 10);
+            builder.def_var(x, val);
         }
         {
             let callee = module.declare_func_in_func(func_exit_id, builder.func);
@@ -165,13 +215,13 @@ fn main() {
     }
 
     module
-        .define_function(func_test_call_id, &mut func_test_call_ctx)
+        .define_function(func_main_id, &mut func_main_ctx)
         .unwrap();
-    let res = verify_function(&func_test_call_ctx.func, &shared_flags);
+    let res = verify_function(&func_main_ctx.func, &shared_flags);
     println!(
         "{}: {}",
-        func_test_call_id,
-        func_test_call_ctx.func.display()
+        func_main_id,
+        func_main_ctx.func.display()
     );
     if let Err(errors) = res {
         panic!("{}", errors);
@@ -180,7 +230,7 @@ fn main() {
     // Write to file
     let finish = module.finish();
     let bytes = finish.emit().unwrap();
-    let mut file = File::create("testing/cr.o").unwrap();
+    let mut file = File::create("target/debug/cr.o").unwrap();
     file.write_all(&bytes).unwrap();
 
     // // Object
